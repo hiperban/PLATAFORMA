@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  
+}
+html, body {
+  background: #ffffff; /* sólido */
+  color: #0f172a;
+}
+
+body {
+  position: relative;
+  background: #ffffff; /* fundo sólido */
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: url("https://www.hiperban.com.br/images/website/black-logo.png") no-repeat center center;
+  background-size: 300px auto;
+  opacity: 0.05;        /* transparência só da imagem */
+  pointer-events: none; /* não atrapalha clique */
+  z-index: 0;
+}
+
+
