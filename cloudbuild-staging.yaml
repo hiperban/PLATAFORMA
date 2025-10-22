@@ -1,60 +1,29 @@
-# cloudbuild-staging.yaml
+timeout: "1200s"
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 substitutions:
-  _PROJECT: hiperban-plataforma
   _REGION: southamerica-east1
   _REPO: app-repo
   _SERVICE: hiperban-staging
-  _INSTANCE: hiperban-sql
 
 steps:
-  # 1) Build
-  - name: 'gcr.io/cloud-builders/docker'
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:$SHORT_SHA', '.']
+
+  - name: gcr.io/cloud-builders/docker
+    args: ['push', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:$SHORT_SHA']
+
+  # deploy
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
     args:
-      - build
-      - '-t'
-      - '${_REGION}-docker.pkg.dev/${_PROJECT}/${_REPO}/${_SERVICE}:$SHORT_SHA'
-      - '.'
-
-  # 2) Push
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - push
-      - '${_REGION}-docker.pkg.dev/${_PROJECT}/${_REPO}/${_SERVICE}:$SHORT_SHA'
-
-  # 3) Migrations (se existir Prisma) — STAGING
-  - name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
-    args:
-      - '-lc'
-      - |
-        if docker run --rm '${_REGION}-docker.pkg.dev/${_PROJECT}/${_REPO}/${_SERVICE}:'$SHORT_SHA sh -lc 'test -f prisma/schema.prisma'; then
-          echo "Prisma detectado. Aplicando migrations em STAGING..."
-          DB_URL=$(gcloud secrets versions access latest --secret=DATABASE_URL_STAGING)
-          docker run --rm \
-            -e DATABASE_URL="$DB_URL" \
-            '${_REGION}-docker.pkg.dev/${_PROJECT}/${_REPO}/${_SERVICE}:'$SHORT_SHA \
-            npx prisma migrate deploy
-        else
-          echo "Prisma NÃO encontrado. Pulando migrations."
-        fi
-
-  # 4) Deploy no Cloud Run (STAGING)
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - run
-      - deploy
-      - '${_SERVICE}'
-      - '--image=${_REGION}-docker.pkg.dev/${_PROJECT}/${_REPO}/${_SERVICE}:$SHORT_SHA'
-      - '--region=${_REGION}'
-      - '--platform=managed'
-      - '--allow-unauthenticated'
-      - '--port=8080'
-      - '--add-cloudsql-instances=${_PROJECT}:${_REGION}:${_INSTANCE}'
-      - '--set-secrets=DATABASE_URL=DATABASE_URL_STAGING:latest,ASAAS_API_KEY=ASAAS_API_KEY_STAGING:latest'
-      - '--set-env-vars=NODE_ENV=staging,NEXT_PUBLIC_ENV=preview'
-
-images:
-  - '${_REGION}-docker.pkg.dev/${_PROJECT}/${_REPO}/${_SERVICE}:$SHORT_SHA'
-
-options:
-  logging: CLOUD_LOGGING_ONLY
+      [
+        'run','deploy','$_SERVICE',
+        '--image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:$SHORT_SHA',
+        '--region=$_REGION','--platform=managed','--allow-unauthenticated',
+        '--port=8080',
+        '--add-cloudsql-instances=hiperban-plataforma:southamerica-east1:hiperban-sql',
+        '--set-secrets=DATABASE_URL=DATABASE_URL_STAGING:latest,ASAAS_API_KEY=ASAAS_API_KEY_STAGING:latest',
+        '--set-env-vars=NODE_ENV=staging,NEXT_PUBLIC_ENV=preview'
+      ]
