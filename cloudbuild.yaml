@@ -1,29 +1,44 @@
-timeout: "1200s"
+substitutions:
+  _REGION: "southamerica-east1"
+  _PROJECT_ID: "hiperban-plataforma"
+  _REPO: "app-repo"
+  _SERVICE: "hiperban-prod"          # troque para hiperban-staging no trigger de staging
+  _IMAGE_NAME: "hiperban-prod"       # troque para hiperban-staging no trigger de staging
+  _ENV: "production"                 # troque para 'staging' no trigger de staging
+  _NEXT_PUBLIC_ENV: "production"     # troque para 'preview' no staging
+  _DB_SECRET: "DATABASE_URL_PROD"    # troque para DATABASE_URL_STAGING no staging
+  _ASAAS_SECRET: "ASAAS_API_KEY_PROD" # troque para ASAAS_API_KEY_STAGING no staging
+
 options:
   logging: CLOUD_LOGGING_ONLY
 
-substitutions:
-  _REGION: southamerica-east1
-  _REPO: app-repo
-  _SERVICE: hiperban-prod
-
 steps:
-  - name: gcr.io/cloud-builders/docker
-    args: ['build', '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:$SHORT_SHA', '.']
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "southamerica-east1-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:$SHORT_SHA"
+      - "."
 
-  - name: gcr.io/cloud-builders/docker
-    args: ['push', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:$SHORT_SHA']
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "southamerica-east1-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:$SHORT_SHA"
 
-  # deploy
-  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     entrypoint: gcloud
     args:
-      [
-        'run','deploy','$_SERVICE',
-        '--image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:$SHORT_SHA',
-        '--region=$_REGION','--platform=managed','--allow-unauthenticated',
-        '--port=8080',
-        '--add-cloudsql-instances=hiperban-plataforma:southamerica-east1:hiperban-sql',
-        '--set-secrets=DATABASE_URL=DATABASE_URL_PROD:latest,ASAAS_API_KEY=ASAAS_API_KEY_PROD:latest',
-        '--set-env-vars=NODE_ENV=production,NEXT_PUBLIC_ENV=production'
-      ]
+      - "run"
+      - "deploy"
+      - "${_SERVICE}"
+      - "--image=southamerica-east1-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:$SHORT_SHA"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--allow-unauthenticated"
+      - "--port=8080"
+      - "--add-cloudsql-instances=${_PROJECT_ID}:${_REGION}:hiperban-sql"
+      - "--set-secrets=DATABASE_URL=${_DB_SECRET}:latest,ASAAS_API_KEY=${_ASAAS_SECRET}:latest"
+      - "--set-env-vars=NODE_ENV=${_ENV},NEXT_PUBLIC_ENV=${_NEXT_PUBLIC_ENV}"
+
+images:
+  - "southamerica-east1-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:$SHORT_SHA"
