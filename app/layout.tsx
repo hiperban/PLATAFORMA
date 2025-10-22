@@ -1,34 +1,18 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import './globals.css';
+import type { ReactNode } from 'react';
 
 export const metadata = {
-  title: "HIPERBAN - Simulação",
-  description: "Simule o financiamento de veículos com a Hiperban",
+  title: 'Hiperban',
+  description: 'Plataforma Hiperban',
 };
 
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
+    <html lang="pt-BR">
+      <body className="min-h-screen bg-gray-50 text-gray-900">
+        <div className="max-w-5xl mx-auto p-6">
+          {children}
+        </div>
       </body>
     </html>
   );
