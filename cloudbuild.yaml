@@ -1,31 +1,29 @@
-# 3) Rodar migrations do Prisma (se existir)
-- name: 'gcr.io/cloud-builders/gcloud'
-  entrypoint: 'bash'
-  args:
-    - '-lc'
-    - |
-      if docker run --rm '${_REGION}-docker.pkg.dev/${_PROJECT}/${_REPO}/${_SERVICE}:'$SHORT_SHA sh -lc 'test -f prisma/schema.prisma'; then
-        echo "Prisma detectado. Lendo DATABASE_URL e aplicando migrations..."
-        DB_URL=$(gcloud secrets versions access latest --secret=DATABASE_URL_PROD)
-        docker run --rm \
-          -e DATABASE_URL="$DB_URL" \
-          '${_REGION}-docker.pkg.dev/${_PROJECT}/${_REPO}/${_SERVICE}:'$SHORT_SHA \
-          npx prisma migrate deploy
-      else
-        echo "Prisma NÃO encontrado. Pulando migrations."
-      fi
+timeout: "1200s"
+options:
+  logging: CLOUD_LOGGING_ONLY
 
-# 4) Deploy no Cloud Run (produção)
-- name: 'gcr.io/cloud-builders/gcloud'
-  args:
-    - run
-    - deploy
-    - '${_SERVICE}'
-    - '--image=${_REGION}-docker.pkg.dev/${_PROJECT}/${_REPO}/${_SERVICE}:$SHORT_SHA'
-    - '--region=${_REGION}'
-    - '--platform=managed'
-    - '--allow-unauthenticated'
-    - '--port=8080'
-    - '--add-cloudsql-instances=${_PROJECT}:${_REGION}:${_INSTANCE}'
-    - '--set-secrets=DATABASE_URL=DATABASE_URL_PROD:latest,ASAAS_API_KEY=ASAAS_API_KEY_PROD:latest'
-    - '--set-env-vars=NODE_ENV=production'
+substitutions:
+  _REGION: southamerica-east1
+  _REPO: app-repo
+  _SERVICE: hiperban-prod
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:$SHORT_SHA', '.']
+
+  - name: gcr.io/cloud-builders/docker
+    args: ['push', '$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:$SHORT_SHA']
+
+  # deploy
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      [
+        'run','deploy','$_SERVICE',
+        '--image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REPO/$_SERVICE:$SHORT_SHA',
+        '--region=$_REGION','--platform=managed','--allow-unauthenticated',
+        '--port=8080',
+        '--add-cloudsql-instances=hiperban-plataforma:southamerica-east1:hiperban-sql',
+        '--set-secrets=DATABASE_URL=DATABASE_URL_PROD:latest,ASAAS_API_KEY=ASAAS_API_KEY_PROD:latest',
+        '--set-env-vars=NODE_ENV=production,NEXT_PUBLIC_ENV=production'
+      ]
